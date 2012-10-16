@@ -5,8 +5,12 @@ from tiddlyweb.store import StoreError
 from tiddlyweb.web.http import HTTP302, HTTP303, HTTP400, HTTP404
 from tiddlyweb.web.util import server_base_url
 
-from .auth import get_flow_client, get_auth_uri, get_credentials
+from tiddlywebplugins.templates import get_template
+
+from .auth import get_auth_uri, get_credentials
 from .app import create_app, store_app, get_app
+from .provider import register_code, save_provider_auth, already_authorized
+
 
 def do_user_auth(environ, start_response):
     query = environ['tiddlyweb.query']
@@ -78,8 +82,83 @@ def clientinfo(environ, start_response):
     return output
 
 
+@require_any_user()
+def provider_auth(environ, start_response):
+    query = environ['tiddlyweb.query']
+    data = {}
+    for key in ['scope', 'redirect_uri', 'response_type', 'client_id',
+            'access_type', 'state']:
+        if key in query:
+            data[key] = query[key][0]
+        elif key in ['client_id', 'response_type', 'scope']:
+            raise HTTP400('Invalid Request, missing required data')
+
+    try:
+        app = get_app(environ, data['client_id'])
+    except StoreError:
+        raise HTTP400('Invalid client_id')
+
+    if 'redirect_uri' not in data:
+        data['redirect_uri'] = app.fields['callback_url']
+
+    if not data['redirect_uri'].startswith(app.fields['callback_url']):
+        raise HTTP400('Invalid redirect_uri')
+
+    # XXX check scope
+
+    data['name'] = app.fields['name']
+
+    if already_authorized(environ, app):
+        return provider_auth_success(environ, start_response, data)
+
+    if environ['REQUEST_METHOD'] == 'GET':
+        template = get_template(environ, 'provider_auth.html')
+        start_response('200 OK', [
+            ('Content-Type', 'text/html; charset=UTF-8')])
+        return template.generate(data=data)
+    else:
+        if 'accept' in query:
+            save_provider_auth(environ, data)
+            return provider_auth_success(environ, start_response, data)
+        else:
+            return provider_auth_error(environ, start_response, data)
+
+
+def provider_auth_success(environ, start_response, data):
+    user = environ['tiddlyweb.usersign']['name']
+    redirect_uri = data['redirect_uri']
+    try:
+        auth_code = register_code(environ, user=user, client=data['client_id'],
+                redirect=redirect_uri, scope=data['scope'])
+    except StoreError as exc:
+        raise HTTP400('Unable to save registration code: %s' % exc)
+    redirect_data = 'code=%s' % auth_code
+    if 'state' in data:
+        redirect_data += '&state%s' % data['state']
+    if '?' in redirect_uri:
+        redirect_uri += '&%s' % redirect_data
+    else:
+        redirect_uri += '?%s' % redirect_data
+
+    raise HTTP302(redirect_uri)
+
+def provider_auth_error(environ, start_response, data):
+    """
+    Respond to the redirect_url with denial, user did not want.
+    """
+    redirect_uri = data['redirect_uri']
+    if '?' in redirect_uri:
+        redirect_uri += '&error=access%20denied'
+    else:
+        redirect_uri += '?error=access%20denied'
+
+    raise HTTP302(redirect_uri)
+
+
 def init(config):
     if 'selector' in config:
         config['selector'].add('/oauth2callback', GET=do_user_auth)
         config['selector'].add('/_oauth/createclient', POST=createclient)
         config['selector'].add('/_oauth/clientinfo', GET=clientinfo)
+        config['selector'].add('/_oauth/authorize', GET=provider_auth,
+                POST=provider_auth)

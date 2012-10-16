@@ -15,53 +15,36 @@ All of these can map to fields on a tiddler, except for id, which comes
 from the id. 
 """
 
-import shutil
 import urllib
 from base64 import b64encode
 from httplib2 import Http
-from wsgi_intercept import httplib2_intercept
-import wsgi_intercept
 
 from tiddlywebplugins.utils import get_store, ensure_bag
 from tiddlywebplugins.oauth.app import create_app, store_app
 
-from tiddlyweb.web.serve import load_app
 from tiddlyweb.config import config
 from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.model.user import User
 
+from test.fixtures import initialize_app
+
 authorization = b64encode('cdent:cowpig')
 
+
 def setup_module(module):
-    try:
-        shutil.rmtree('store')
-    except:
-        pass
+    clean_store()
     module.store = get_store(config)
-    config['server_host'] = {
-            'scheme': 'http',
-            'host': 'our_test_domain',
-            'port': '8001',
-            }
     module.environ = {'tiddlyweb.config': config,
             'tiddlyweb.store': module.store}
     ensure_bag('oauth_apps', module.store, policy_dict=dict(
         read=['NONE'], write=['NONE'], create=['NONE'],
         delete=['NONE'], manage=['NONE']))
-    initialize_app()
+    initialize_app(config)
     module.http = Http()
 
     user = User('cdent')
     user.set_password('cowpig')
     module.store.put(user)
-
-def initialize_app():
-    app = load_app()
-    def app_fn():
-        return app
-    
-    httplib2_intercept.install()
-    wsgi_intercept.add_wsgi_intercept('our_test_domain', 8001, app_fn)
 
 
 def test_create_application():
