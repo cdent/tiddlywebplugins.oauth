@@ -26,7 +26,7 @@ from tiddlyweb.config import config
 from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.model.user import User
 
-from test.fixtures import initialize_app
+from test.fixtures import initialize_app, clean_store
 
 authorization = b64encode('cdent:cowpig')
 
