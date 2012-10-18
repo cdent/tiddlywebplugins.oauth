@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from tiddlyweb.model.tiddler import Tiddler
 
+
 def create_app(name=None, owner=None, app_url=None,
         callback_url=None, logo=None):
     """

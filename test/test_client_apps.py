@@ -12,7 +12,7 @@ Clients have:
     callback url:
 
 All of these can map to fields on a tiddler, except for id, which comes
-from the id. 
+from the id.
 """
 
 import urllib

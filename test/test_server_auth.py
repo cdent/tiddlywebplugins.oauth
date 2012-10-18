@@ -13,6 +13,7 @@ from test.fixtures import initialize_app, clean_store
 
 authorization = b64encode('cdent:cowpig')
 
+
 def setup_module(module):
     """
     clean up the store, establish a registered client
@@ -39,7 +40,7 @@ def setup_module(module):
         read=['NONE'], write=['NONE'], create=['NONE'],
         delete=['NONE'], manage=['NONE']))
 
-# make an application and store that info 
+# make an application and store that info
     app = create_app(name='testapp', owner='cdent',
             app_url='http://our_test_domain:8001',
             callback_url='http://our_test_domain:8001/oauth2callback')

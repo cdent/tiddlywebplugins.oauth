@@ -1,12 +1,13 @@
 """
 A TiddlyWeb credentials extractor that looks for
-oauth style bearer tokens and tries to validate 
+oauth style bearer tokens and tries to validate
 them.
 """
 
 from tiddlyweb.web.extractors import ExtractorInterface
 
 from tiddlywebplugins.oauth.provider import check_access_token
+
 
 class Extractor(ExtractorInterface):
     """
@@ -19,7 +20,7 @@ class Extractor(ExtractorInterface):
         user_info = environ.get('HTTP_AUTHORIZATION', None)
         if user_info is None:
             return False
-        
+
         if user_info.lower().startswith('bearer'):
             token = user_info.strip().split(' ')[1]
         else:

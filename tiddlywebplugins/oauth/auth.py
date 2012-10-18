@@ -1,8 +1,14 @@
-
+"""
+Utility routines used by a consumer (server that wants
+to access restriced resources on a provider) to follow
+a web server flow for authorizing and getting an access
+token.
+"""
 
 from oauth2client.client import OAuth2WebServerFlow
 from copy import deepcopy
 from httplib2 import Http
+
 
 def get_flow_client(config, server_name):
     """
@@ -18,7 +24,7 @@ def get_flow_client(config, server_name):
         http = Http()
 
     del config_data['info_uri']
-    config_data['redirect_uri'] ='%s?server_name=%s' % (
+    config_data['redirect_uri'] = '%s?server_name=%s' % (
             config_data['redirect_uri'], server_name)
     flow = OAuth2WebServerFlow(**config_data)
 
@@ -26,12 +32,19 @@ def get_flow_client(config, server_name):
 
 
 def get_auth_uri(config, server_name):
+    """
+    Get the auth uri for a provider named by server_name.
+    """
     flow = get_flow_client(config, server_name)[0]
     auth_uri = flow.step1_get_authorize_url()
     return auth_uri
 
 
 def get_credentials(config, server_name, code):
+    """
+    Do the HTTP to get an access token from server_name, using
+    the provided code.
+    """
     flow, http = get_flow_client(config, server_name)
     credentials = flow.step2_exchange(code, http=http)
     return credentials, http

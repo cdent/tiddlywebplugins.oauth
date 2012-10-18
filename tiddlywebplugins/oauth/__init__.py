@@ -1,12 +1,16 @@
+"""
+Plugin initialization and web handlers for doing oauth.
+These need to be split out into differnt files.
+"""
 
 import json
 
-from tiddlywebplugins.utils import require_any_user
 
 from tiddlyweb.store import StoreError
 from tiddlyweb.web.http import HTTP302, HTTP303, HTTP400, HTTP404
 from tiddlyweb.web.util import server_base_url
 
+from tiddlywebplugins.utils import require_any_user
 from tiddlywebplugins.templates import get_template
 
 from .auth import get_auth_uri, get_credentials
@@ -16,6 +20,18 @@ from .provider import (register_code, save_provider_auth, already_authorized,
 
 
 def do_user_auth(environ, start_response):
+    """
+    Consumer authorization for the sake of a user.
+
+    If no `code` is present then we send the user to the
+    auth uri of the selected provider. If there is a code
+    then we use that to get an access token, then use that
+    access token to get some information about the user
+    at the provider.
+
+    XXX: Save the access token for later user.
+    """
+
     query = environ['tiddlyweb.query']
     config = environ['tiddlyweb.config']
 
@@ -24,7 +40,7 @@ def do_user_auth(environ, start_response):
     server_name = query.get('server_name', [None])[0]
 
     # initial redirect
-    if not code and not error: 
+    if not code and not error:
         raise HTTP302(get_auth_uri(config, server_name))
 
     output = []
@@ -35,7 +51,10 @@ def do_user_auth(environ, start_response):
         credentials.authorize(http)
         response, content = http.request(
                 config['oauth.servers'][server_name]['info_uri'])
-        output.append(content)
+        if response['status'] == '200':
+            output.append(content)
+        else:
+            output.append('Unable to reach info_uri')
 
     if error:
         output.append('error: %s\n' % error)
@@ -46,6 +65,15 @@ def do_user_auth(environ, start_response):
 
 @require_any_user()
 def createclient(environ, start_response):
+    """
+    At the provider, register a client and provide them with
+    an id, secret, etc.
+
+    This is not part of the oAuth spec, but is fairly standard
+    form for what is usually called "creating an app".
+
+    On success redirects to the info page for the app.
+    """
     query = environ['tiddlyweb.query']
     current_user = environ['tiddlyweb.usersign']['name']
     data = {}
@@ -67,6 +95,12 @@ def createclient(environ, start_response):
 
 
 def clientinfo(environ, start_response):
+    """
+    At the provider display the stored information
+    about a app, given its id in the query parameter `app`.
+
+    Only the client/app owner can see the secret.
+    """
     query = environ['tiddlyweb.query']
     current_user = environ['tiddlyweb.usersign']['name']
     app_id = query.get('app', [None])[0]
@@ -90,6 +124,19 @@ def clientinfo(environ, start_response):
 
 @require_any_user()
 def provider_auth(environ, start_response):
+    """
+    Authorize endpoint on the provider.
+
+    If the right information is provided and validates against
+    stored info, and the user says it is okay, return a 
+    code back to the redirect_uri, which must begin with
+    the stored callback_url.
+
+    That code is stored to be compared later, when the 
+    consumer sends it requesting as access_token.
+
+    XXX: Missing scope handling.
+    """ 
     query = environ['tiddlyweb.query']
     data = {}
     for key in ['scope', 'redirect_uri', 'response_type', 'client_id',
@@ -97,27 +144,25 @@ def provider_auth(environ, start_response):
         if key in query:
             data[key] = query[key][0]
         elif key in ['client_id', 'response_type', 'scope']:
-            raise HTTP400('Invalid Request, missing required data')
+            provider_auth_error(data, error='invalid_request')
 
     try:
         app = get_app(environ, data['client_id'])
     except StoreError:
-        return provider_auth_error(environ, start_response, data,
-                error='unauthorized_client')
+        return provider_auth_error(data, error='unauthorized_client')
 
     if 'redirect_uri' not in data:
         data['redirect_uri'] = app.fields['callback_url']
 
     if not data['redirect_uri'].startswith(app.fields['callback_url']):
-        return provider_auth_error(environ, start_response, data,
-                error='invalid_request')
+        return provider_auth_error(data, error='invalid_request')
 
     # XXX check scope
 
     data['name'] = app.fields['name']
 
     if already_authorized(environ, app):
-        return provider_auth_success(environ, start_response, data)
+        return provider_auth_success(environ, data)
 
     if environ['REQUEST_METHOD'] == 'GET':
         template = get_template(environ, 'provider_auth.html')
@@ -127,15 +172,25 @@ def provider_auth(environ, start_response):
     else:
         if 'accept' in query:
             save_provider_auth(environ, data)
-            return provider_auth_success(environ, start_response, data)
+            return provider_auth_success(environ, data)
         else:
-            return provider_auth_error(environ, start_response, data,
-                    error='access_denied')
+            return provider_auth_error(data, error='access_denied')
 
 
 def access_token(environ, start_response):
     """
-    Respond to a POST requesting an access token.
+    On the provider, respond to a POST requesting an access
+    token.
+
+    There are several required form items. Once these are had,
+    the client_secret and id must be validated against stored info.
+
+    Then the code must be checked against storage. If it is too
+    old (over 1 minute) we will not use it.
+
+    If everything is okay we create an access token that is limited
+    to a particular user, client and scope and send that in the 
+    response.
     """
     query = environ['tiddlyweb.query']
     input_data = {}
@@ -144,42 +199,42 @@ def access_token(environ, start_response):
         try:
             input_data[key] = query[key][0]
         except KeyError:
-            return token_error(environ, start_response,
+            return token_error(start_response,
                     error='invalid_request',
                     message='missing required input')
 
     if not client_valid(environ, input_data['client_id'],
             input_data['client_secret']):
-        return token_error(environ, start_response, error='invalid_client1')
+        return token_error(start_response, error='invalid_client')
 
     if input_data['grant_type'] != 'authorization_code':
-        return token_error(environ, start_response,
-                error='invalid_grant2',
+        return token_error(start_response,
+                error='invalid_grant',
                 message='authorization_code only')
 
     try:
         registration = get_code(environ, input_data['code'])
     except StoreError:
-        return token_error(environ, start_response,
-                error='invalid_client3', message='bad code')
+        return token_error(start_response,
+                error='invalid_client', message='bad code')
 
     if code_expired(registration):
         delete_code(environ, registration)
-        return token_error(environ, start_response,
-                error='invalid_client4', message='code expired')
+        return token_error(start_response,
+                error='invalid_client', message='code expired')
 
     # XXX scope handling more full
     if not input_data['scope']:
         try:
-            scope = registration.fields['scope'] 
+            scope = registration.fields['scope']
         except KeyError:
             scope = ''
     else:
         scope = input_data['scope']
 
     if registration.fields['redirect_uri'] != input_data['redirect_uri']:
-        return token_error(environ, start_response,
-                error='invalid_client5', message='redirect_uri does not match')
+        return token_error(start_response,
+                error='invalid_client', message='redirect_uri does not match')
 
     code_user = registration.modifier
     delete_code(environ, registration)
@@ -188,16 +243,16 @@ def access_token(environ, start_response):
         token = make_access_token(environ, user=code_user,
                 client=input_data['client_id'], scope=scope)
     except StoreError:
-        return token_error(environ, start_response,
+        return token_error(start_response,
                 error='server_error',
                 message='unable to save access token')
 
-    return token_success(environ, start_response, token)
+    return token_success(start_response, token)
 
 
-def token_success(environ, start_response, token):
+def token_success(start_response, token):
     """
-    Respond with an access token.
+    Provider responds with an access token.
     """
     data = {'access_token': token.title,
             'token_type': token.fields['token_type'],
@@ -212,27 +267,32 @@ def token_success(environ, start_response, token):
     return [json_data]
 
 
-def token_error(environ, start_response, error='error', message=''):
+def token_error(start_response, error='error', message=''):
     """
-    Tell a token request that it was not good enough.
+    Provider responds to token request with an error.
     """
     data = {'error': error}
     if message:
-        data['error_description'] =  message
+        data['error_description'] = message
     json_data = json.dumps(data)
     start_response('400 Bad Request', [
         ('Content-type', 'application/json')])
     return [json_data]
 
 
-def provider_auth_success(environ, start_response, data):
+def provider_auth_success(environ, data):
+    """
+    Provider responds to authorize requests with redirect
+    including code.
+    """
     user = environ['tiddlyweb.usersign']['name']
     redirect_uri = data['redirect_uri']
     try:
         auth_code = register_code(environ, user=user, client=data['client_id'],
                 redirect=redirect_uri, scope=data['scope'])
-    except StoreError as exc:
-        raise HTTP400('Unable to save registration code: %s' % exc)
+    except StoreError:
+        return provider_auth_error(data, error='server_error')
+
     redirect_data = 'code=%s' % auth_code
     if 'state' in data:
         redirect_data += '&state%s' % data['state']
@@ -243,9 +303,10 @@ def provider_auth_success(environ, start_response, data):
 
     raise HTTP302(redirect_uri)
 
-def provider_auth_error(environ, start_response, data, error='invalid_request'):
+
+def provider_auth_error(data, error='invalid_request'):
     """
-    Respond to the redirect_url with denial, user did not want.
+    Provider responds to the redirect_url with error.
     """
     redirect_uri = data['redirect_uri']
     if '?' in redirect_uri:
@@ -258,6 +319,10 @@ def provider_auth_error(environ, start_response, data, error='invalid_request'):
 
 @require_any_user()
 def user_info(environ, start_response):
+    """
+    Simple handler which displays the current user's
+    username and roles.
+    """
     current_user = environ['tiddlyweb.usersign']
     json_data = json.dumps(current_user)
     start_response('200 OK', [
@@ -266,6 +331,10 @@ def user_info(environ, start_response):
 
 
 def init(config):
+    """
+    Initialize the plugin by setting handlers and adding
+    extractor.
+    """
     if 'selector' in config:
         config['extractors'].append('tiddlywebplugins.oauth.extractor')
         config['selector'].add('/oauth2callback', GET=do_user_auth)

@@ -1,4 +1,6 @@
-
+"""
+Data handling code used by an oauth2 provider.
+"""
 
 from uuid import uuid4
 from datetime import datetime, timedelta
@@ -68,6 +70,7 @@ def save_provider_auth(environ, data):
     """
     pass
 
+
 def already_authorized(environ, data):
     """
     Return true or false if this current user has an existing
@@ -90,6 +93,7 @@ def make_access_token(environ, user, client, scope='', token_type='bearer',
     token.modifier = user
     token.fields = {
             'token_type': token_type,
+            'client': client,
             'scope': scope}
     if expires_in:
         token.fields['expires_in'] = expires_in
@@ -111,6 +115,10 @@ def check_access_token(environ, token):
     token_info = store.get(token_info)
     token_type = token_info.fields['token_type']
     expires_in = token_info.fields.get('expires_in', None)
+
+    client_id = token_info.fields['client']
+    # XXX verify that client_id is "us"
+
     if token_type != 'bearer':
         return None
     user = token_info.modifier
@@ -124,4 +132,3 @@ def check_access_token(environ, token):
         pass
 
     return user, scope
-
