@@ -5,7 +5,7 @@ from tiddlyweb.model.user import User
 from tiddlywebplugins.utils import get_store, ensure_bag
 
 from tiddlywebplugins.oauth.app import create_app, store_app
-from tiddlywebplugins.oauth.auth import get_auth_uri
+from tiddlywebplugins.oauth.auth import get_auth_uri, get_credentials
 
 from httplib2 import Http
 
@@ -67,3 +67,9 @@ def test_our_server():
             headers={'Authorization': 'Basic %s' % authorization})
 
     assert response['status'] == '302'
+    location = response['location']
+    assert 'http://our_test_domain:8001/oauth2callback?server_name=testserver&code=' in location
+    code = location.rsplit('=', 1)[1] # haxor don't need no parsing :(
+
+    credentials = get_credentials(config, 'testserver', code)
+

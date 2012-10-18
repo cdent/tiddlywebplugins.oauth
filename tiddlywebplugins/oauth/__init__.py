@@ -1,4 +1,6 @@
 
+import json
+
 from tiddlywebplugins.utils import require_any_user
 
 from tiddlyweb.store import StoreError
@@ -8,8 +10,9 @@ from tiddlyweb.web.util import server_base_url
 from tiddlywebplugins.templates import get_template
 
 from .auth import get_auth_uri, get_credentials
-from .app import create_app, store_app, get_app
-from .provider import register_code, save_provider_auth, already_authorized
+from .app import create_app, store_app, get_app, client_valid
+from .provider import (register_code, save_provider_auth, already_authorized,
+        get_code, code_expired, delete_code)
 
 
 def do_user_auth(environ, start_response):
@@ -124,6 +127,68 @@ def provider_auth(environ, start_response):
             return provider_auth_error(environ, start_response, data)
 
 
+def access_token(environ, start_response):
+    """
+    Respond to a POST requesting an access token.
+    """
+    query = environ['tiddlyweb.query']
+    input_data = {}
+    for key in ['grant_type', 'code', 'scope', 'client_id', 'client_secret',
+            'redirect_uri']:
+        try:
+            input_data[key] = query[key][0]
+        except KeyError:
+            return token_error(environ, start_response,
+                    error='invalid_request',
+                    message='missing required input')
+
+    if not client_valid(environ, input_data['client_id'],
+            input_data['client_secret']):
+        return token_error(environ, start_response, error='invalid_client1')
+
+    if input_data['grant_type'] != 'authorization_code':
+        return token_error(environ, start_response,
+                error='invalid_grant2',
+                message='authorization_code only')
+
+    try:
+        registration = get_code(environ, input_data['code'])
+    except StoreError:
+        return token_error(environ, start_response,
+                error='invalid_client3', message='bad code')
+
+    if code_expired(registration):
+        delete_code(environ, registration)
+        return token_error(environ, start_response,
+                error='invalid_client4', message='code expired')
+
+    # XXX scope handling
+
+    if registration.fields['redirect_uri'] != input_data['redirect_uri']:
+        return token_error(environ, start_response,
+                error='invalid_client5', message='redirect_uri does not match')
+
+    delete_code(environ, registration)
+
+    # make and save a token
+    # tell the caller about the toke
+
+    return token_success(environ, start_response, token)
+
+
+def token_error(environ, start_response, error='error', message=''):
+    """
+    Tell a token request that it was not good enough.
+    """
+    data = {'error': error}
+    if message:
+        data['error_description'] =  message
+    json_data = json.dumps(data)
+    start_response('400 Bag Request', [
+        ('Content-type', 'application/json')])
+    return [json_data]
+
+
 def provider_auth_success(environ, start_response, data):
     user = environ['tiddlyweb.usersign']['name']
     redirect_uri = data['redirect_uri']
@@ -162,3 +227,4 @@ def init(config):
         config['selector'].add('/_oauth/clientinfo', GET=clientinfo)
         config['selector'].add('/_oauth/authorize', GET=provider_auth,
                 POST=provider_auth)
+        config['selector'].add('/_oauth/access_token', POST=access_token)

@@ -52,3 +52,12 @@ def get_app(environ, app_id):
     app = Tiddler(app_id)
     app.bag = bag
     return store.get(app)
+
+
+def client_valid(environ, client_id, client_secret):
+    """
+    Return true if the provided secret for client_id is the same as the
+    one in storage.
+    """
+    app = get_app(environ, client_id)
+    return app.fields['client_secret'] == client_secret

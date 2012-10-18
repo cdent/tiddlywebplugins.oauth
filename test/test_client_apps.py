@@ -20,7 +20,7 @@ from base64 import b64encode
 from httplib2 import Http
 
 from tiddlywebplugins.utils import get_store, ensure_bag
-from tiddlywebplugins.oauth.app import create_app, store_app
+from tiddlywebplugins.oauth.app import create_app, store_app, client_valid
 
 from tiddlyweb.config import config
 from tiddlyweb.model.tiddler import Tiddler
@@ -63,6 +63,8 @@ def test_create_application():
     assert isinstance(app, Tiddler)
 
     app = store_app(environ, app)
+
+    assert client_valid(environ, app.title, app.fields['client_secret'])
 
 
 def test_web_create_application():

@@ -35,5 +35,3 @@ def get_credentials(config, server_name, code):
     flow, http = get_flow_client(config, server_name)
     credentials = flow.step2_exchange(code, http=http)
     return credentials, http
-
-
