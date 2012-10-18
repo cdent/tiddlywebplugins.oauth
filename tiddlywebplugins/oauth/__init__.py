@@ -12,7 +12,7 @@ from tiddlywebplugins.templates import get_template
 from .auth import get_auth_uri, get_credentials
 from .app import create_app, store_app, get_app, client_valid
 from .provider import (register_code, save_provider_auth, already_authorized,
-        get_code, code_expired, delete_code)
+        get_code, code_expired, delete_code, make_access_token)
 
 
 def do_user_auth(environ, start_response):
@@ -99,13 +99,15 @@ def provider_auth(environ, start_response):
     try:
         app = get_app(environ, data['client_id'])
     except StoreError:
-        raise HTTP400('Invalid client_id')
+        return provider_auth_error(environ, start_response, data,
+                error='unauthorized_client')
 
     if 'redirect_uri' not in data:
         data['redirect_uri'] = app.fields['callback_url']
 
     if not data['redirect_uri'].startswith(app.fields['callback_url']):
-        raise HTTP400('Invalid redirect_uri')
+        return provider_auth_error(environ, start_response, data,
+                error='invalid_request')
 
     # XXX check scope
 
@@ -124,7 +126,8 @@ def provider_auth(environ, start_response):
             save_provider_auth(environ, data)
             return provider_auth_success(environ, start_response, data)
         else:
-            return provider_auth_error(environ, start_response, data)
+            return provider_auth_error(environ, start_response, data,
+                    error='access_denied')
 
 
 def access_token(environ, start_response):
@@ -162,18 +165,48 @@ def access_token(environ, start_response):
         return token_error(environ, start_response,
                 error='invalid_client4', message='code expired')
 
-    # XXX scope handling
+    # XXX scope handling more full
+    if not input_data['scope']:
+        try:
+            scope = registration.fields['scope'] 
+        except KeyError:
+            scope = ''
+    else:
+        scope = input_data['scope']
 
     if registration.fields['redirect_uri'] != input_data['redirect_uri']:
         return token_error(environ, start_response,
                 error='invalid_client5', message='redirect_uri does not match')
 
+    code_user = registration.modifier
     delete_code(environ, registration)
 
-    # make and save a token
-    # tell the caller about the toke
+    try:
+        token = make_access_token(environ, user=code_user,
+                client=input_data['client_id'], scope=scope)
+    except StoreError:
+        return token_error(environ, start_response,
+                error='server_error',
+                message='unable to save access token')
 
     return token_success(environ, start_response, token)
+
+
+def token_success(environ, start_response, token):
+    """
+    Respond with an access token.
+    """
+    data = {'access_token': token.title,
+            'token_type': token.fields['token_type'],
+            'scope': token.fields['scope']}
+    if 'expires_in' in token.fields:
+        data['expires_in'] = token.fields['expires_in']
+
+    json_data = json.dumps(data)
+    start_response('200 OK', [
+        ('Content-Type', 'application/json'),
+        ('Cache-control', 'no-store')])
+    return [json_data]
 
 
 def token_error(environ, start_response, error='error', message=''):
@@ -184,7 +217,7 @@ def token_error(environ, start_response, error='error', message=''):
     if message:
         data['error_description'] =  message
     json_data = json.dumps(data)
-    start_response('400 Bag Request', [
+    start_response('400 Bad Request', [
         ('Content-type', 'application/json')])
     return [json_data]
 
@@ -207,24 +240,35 @@ def provider_auth_success(environ, start_response, data):
 
     raise HTTP302(redirect_uri)
 
-def provider_auth_error(environ, start_response, data):
+def provider_auth_error(environ, start_response, data, error='invalid_request'):
     """
     Respond to the redirect_url with denial, user did not want.
     """
     redirect_uri = data['redirect_uri']
     if '?' in redirect_uri:
-        redirect_uri += '&error=access%20denied'
+        redirect_uri += '&error=%s' % error
     else:
-        redirect_uri += '?error=access%20denied'
+        redirect_uri += '?error=%s' % error
 
     raise HTTP302(redirect_uri)
 
 
+@require_any_user()
+def user_info(environ, start_response):
+    current_user = environ['tiddlyweb.usersign']
+    json_data = json.dumps(current_user)
+    start_response('200 OK', [
+        ('Content-Type', 'application/json; charset=UTF-8')])
+    return [json_data]
+
+
 def init(config):
     if 'selector' in config:
+        config['extractors'].append('tiddlywebplugins.oauth.extractor')
         config['selector'].add('/oauth2callback', GET=do_user_auth)
         config['selector'].add('/_oauth/createclient', POST=createclient)
         config['selector'].add('/_oauth/clientinfo', GET=clientinfo)
         config['selector'].add('/_oauth/authorize', GET=provider_auth,
                 POST=provider_auth)
         config['selector'].add('/_oauth/access_token', POST=access_token)
+        config['selector'].add('/_oauth/user_info', GET=user_info)

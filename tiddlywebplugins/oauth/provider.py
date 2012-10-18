@@ -17,6 +17,7 @@ def register_code(environ, user, client, redirect, scope=None):
     if scope is None:
         scope = []
     code = str(uuid4())
+
     registration = Tiddler(code)
     registration.modifier = user
     registration.fields = dict(
@@ -73,4 +74,54 @@ def already_authorized(environ, data):
     validation of this app.
     """
     return False
+
+
+def make_access_token(environ, user, client, scope='', token_type='bearer',
+        expires_in=None):
+    """
+    Create an access token for a user from a particular client and scope.
+    """
+    config = environ['tiddlyweb.config']
+    store = environ['tiddlyweb.store']
+    bag_name = config.get('oauth.tokens_bag', 'oauth_tokens')
+
+    code = str(uuid4())
+    token = Tiddler(code, bag_name)
+    token.modifier = user
+    token.fields = {
+            'token_type': token_type,
+            'scope': scope}
+    if expires_in:
+        token.fields['expires_in'] = expires_in
+
+    store.put(token)
+
+    return token
+
+
+def check_access_token(environ, token):
+    """
+    Extract a user from token information, if the token is valid.
+    """
+    config = environ['tiddlyweb.config']
+    store = environ['tiddlyweb.store']
+    bag_name = config.get('oauth.tokens_bag', 'oauth_tokens')
+
+    token_info = Tiddler(token, bag_name)
+    token_info = store.get(token_info)
+    token_type = token_info.fields['token_type']
+    expires_in = token_info.fields.get('expires_in', None)
+    if token_type != 'bearer':
+        return None
+    user = token_info.modifier
+    if 'scope' in token_info.fields:
+        scope = token_info.fields['scope'].split(' ')
+    else:
+        scope = ''
+
+    if expires_in:
+        # XXX check against token creation time delete if expired
+        pass
+
+    return user, scope
 

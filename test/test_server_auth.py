@@ -26,6 +26,9 @@ def setup_module(module):
     ensure_bag('oauth_registrations', module.store, policy_dict=dict(
         read=['NONE'], write=['NONE'], create=['NONE'],
         delete=['NONE'], manage=['NONE']))
+    ensure_bag('oauth_tokens', module.store, policy_dict=dict(
+        read=['NONE'], write=['NONE'], create=['NONE'],
+        delete=['NONE'], manage=['NONE']))
     app = create_app(name='testapp', owner='cdent',
             app_url='http://our_test_domain:8001',
             callback_url='http://our_test_domain:8001/oauth2callback')
@@ -71,5 +74,12 @@ def test_our_server():
     assert 'http://our_test_domain:8001/oauth2callback?server_name=testserver&code=' in location
     code = location.rsplit('=', 1)[1] # haxor don't need no parsing :(
 
-    credentials = get_credentials(config, 'testserver', code)
+    credentials, myhttp = get_credentials(config, 'testserver', code)
 
+    user_info_uri = config['oauth.servers']['testserver']['info_uri']
+    credentials.authorize(myhttp)
+    response, content = myhttp.request(user_info_uri)
+
+    assert response['status'] == '200'
+    assert '"name": "cdent"' in content
+    assert '"roles": []' in content
