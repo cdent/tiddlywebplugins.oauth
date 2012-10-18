@@ -37,6 +37,9 @@ def do_user_auth(environ, start_response):
                 config['oauth.servers'][server_name]['info_uri'])
         output.append(content)
 
+    if error:
+        output.append('error: %s\n' % error)
+
     start_response('200 OK', [('Content-Type', 'text-plain')])
     return output
 
