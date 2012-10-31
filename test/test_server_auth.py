@@ -4,7 +4,7 @@ from tiddlyweb.config import config
 from tiddlyweb.model.user import User
 from tiddlywebplugins.utils import get_store, ensure_bag
 
-from tiddlywebplugins.oauth.client import _create_app, store_app
+from tiddlywebplugins.oauth.client import create, store_app
 from tiddlywebplugins.oauth.auth import get_auth_uri, get_credentials
 
 from httplib2 import Http
@@ -41,7 +41,7 @@ def setup_module(module):
         delete=['NONE'], manage=['NONE']))
 
 # make an application and store that info
-    app = _create_app(name='testapp', owner='cdent',
+    app = create(name='testapp', owner='cdent',
             app_url='http://our_test_domain:8001',
             callback_url='http://our_test_domain:8001/_oauth/callback')
 

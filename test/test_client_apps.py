@@ -20,7 +20,7 @@ from base64 import b64encode
 from httplib2 import Http
 
 from tiddlywebplugins.utils import get_store, ensure_bag
-from tiddlywebplugins.oauth.client import _create_app, store_app, client_valid
+from tiddlywebplugins.oauth.client import create, store_app, client_valid
 
 from tiddlyweb.config import config
 from tiddlyweb.model.tiddler import Tiddler
@@ -48,7 +48,7 @@ def setup_module(module):
 
 
 def test_create_application():
-    app = _create_app(name='monkey',
+    app = create(name='monkey',
             owner='cdent',
             app_url='http://oauth.peermore.com',
             callback_url='http://oauth.peermore.com/oauth2callback')

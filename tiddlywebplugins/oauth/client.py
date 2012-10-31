@@ -31,7 +31,7 @@ def create_app(environ, start_response):
     data['owner'] = current_user
 
     try:
-        app_tiddler = _create_app(**data)
+        app_tiddler = create(**data)
     except TypeError as exc:
         raise HTTP400('Invalid form submission: %s' % exc)
 
@@ -70,7 +70,7 @@ def app_info(environ, start_response):
     return output
 
 
-def _create_app(name=None, owner=None, app_url=None,
+def create(name=None, owner=None, app_url=None,
         callback_url=None, logo=None):
     """
     Create a tiddler representing a client app.
