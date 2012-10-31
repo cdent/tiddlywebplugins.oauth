@@ -24,15 +24,15 @@ def provider_auth(environ, start_response):
     Authorize endpoint on the provider.
 
     If the right information is provided and validates against
-    stored info, and the user says it is okay, return a 
+    stored info, and the user says it is okay, return a
     code back to the redirect_uri, which must begin with
     the stored callback_url.
 
-    That code is stored to be compared later, when the 
+    That code is stored to be compared later, when the
     consumer sends it requesting as access_token.
 
     XXX: Missing scope handling.
-    """ 
+    """
     query = environ['tiddlyweb.query']
     data = {}
     for key in ['scope', 'redirect_uri', 'response_type', 'client_id',
@@ -110,8 +110,6 @@ def provider_auth_error(data, error='invalid_request'):
     raise HTTP302(redirect_uri)
 
 
-
-
 def access_token(environ, start_response):
     """
     On the provider, respond to a POST requesting an access
@@ -124,7 +122,7 @@ def access_token(environ, start_response):
     old (over 1 minute) we will not use it.
 
     If everything is okay we create an access token that is limited
-    to a particular user, client and scope and send that in the 
+    to a particular user, client and scope and send that in the
     response.
     """
     query = environ['tiddlyweb.query']
@@ -213,8 +211,6 @@ def token_error(start_response, error='error', message=''):
     start_response('400 Bad Request', [
         ('Content-type', 'application/json')])
     return [json_data]
-
-
 
 
 def register_code(environ, user, client, redirect, scope=None):
