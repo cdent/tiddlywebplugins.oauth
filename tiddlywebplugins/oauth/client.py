@@ -11,6 +11,7 @@ from tiddlyweb.web.util import server_base_url
 
 from tiddlywebplugins.utils import require_any_user
 
+
 @require_any_user()
 def create_app(environ, start_response):
     """

@@ -2,6 +2,8 @@
 Routines used by the oAuth2 consumer.
 """
 
+from tiddlyweb.web.http import HTTP302
+
 from .auth import get_auth_uri, get_credentials
 
 def do_user_auth(environ, start_response):
