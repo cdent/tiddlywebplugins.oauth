@@ -20,7 +20,7 @@ from base64 import b64encode
 from httplib2 import Http
 
 from tiddlywebplugins.utils import get_store, ensure_bag
-from tiddlywebplugins.oauth.app import create_app, store_app, client_valid
+from tiddlywebplugins.oauth.client import _create_app, store_app, client_valid
 
 from tiddlyweb.config import config
 from tiddlyweb.model.tiddler import Tiddler
@@ -48,7 +48,7 @@ def setup_module(module):
 
 
 def test_create_application():
-    app = create_app(name='monkey',
+    app = _create_app(name='monkey',
             owner='cdent',
             app_url='http://oauth.peermore.com',
             callback_url='http://oauth.peermore.com/oauth2callback')
@@ -72,13 +72,13 @@ def test_web_create_application():
             app_url='http://someplace.example.com',
             callback_url='http://however.example.com/callback'))
     response, content = http.request(
-            'http://our_test_domain:8001/_oauth/createclient',
+            'http://our_test_domain:8001/_oauth/createapp',
             method='POST',
             body=request_body)
     assert response['status'] == '403'
 
     response, content = http.request(
-            'http://our_test_domain:8001/_oauth/createclient',
+            'http://our_test_domain:8001/_oauth/createapp',
             method='POST',
             headers={'Content-Type': 'application/x-www-form-urlencoded',
                 'Authorization': 'Basic %s' % authorization},
@@ -92,7 +92,7 @@ def test_web_create_application():
     app_id = content.split(':', 1)[1].strip()
 
     response, content = http.request(
-            'http://our_test_domain:8001/_oauth/clientinfo?app=%s' % app_id,
+            'http://our_test_domain:8001/_oauth/appinfo?app=%s' % app_id,
             method='GET',
             headers={'Authorization': 'Basic %s' % authorization})
 
@@ -100,13 +100,13 @@ def test_web_create_application():
     assert 'client secret:' in content
 
     response, content = http.request(
-            'http://our_test_domain:8001/_oauth/clientinfo',
+            'http://our_test_domain:8001/_oauth/appinfo',
             method='GET')
 
     assert response['status'] == '400'
 
     response, content = http.request(
-            'http://our_test_domain:8001/_oauth/clientinfo?app=%s' % '5',
+            'http://our_test_domain:8001/_oauth/appinfo?app=%s' % '5',
             method='GET')
 
     assert response['status'] == '404'

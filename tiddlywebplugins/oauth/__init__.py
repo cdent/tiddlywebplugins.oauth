@@ -7,75 +7,15 @@ import json
 
 
 from tiddlyweb.store import StoreError
-from tiddlyweb.web.http import HTTP302, HTTP303, HTTP400, HTTP404
-from tiddlyweb.web.util import server_base_url
+from tiddlyweb.web.http import HTTP302
 
 from tiddlywebplugins.utils import require_any_user
 from tiddlywebplugins.templates import get_template
 
-from .app import create_app, store_app, get_app, client_valid
+from .client import create_app, app_info, get_app, client_valid
 from .provider import (register_code, save_provider_auth, already_authorized,
         get_code, code_expired, delete_code, make_access_token)
 from .consumer import do_user_auth
-
-
-@require_any_user()
-def createclient(environ, start_response):
-    """
-    At the provider, register a client and provide them with
-    an id, secret, etc.
-
-    This is not part of the oAuth spec, but is fairly standard
-    form for what is usually called "creating an app".
-
-    On success redirects to the info page for the app.
-    """
-    query = environ['tiddlyweb.query']
-    current_user = environ['tiddlyweb.usersign']['name']
-    data = {}
-    for key in ['name', 'app_url', 'callback_url', 'logo']:
-        if key in query:
-            data[key] = query[key][0]
-    data['owner'] = current_user
-
-    try:
-        app_tiddler = create_app(**data)
-    except TypeError as exc:
-        raise HTTP400('Invalid form submission: %s' % exc)
-
-    # let a store error raise to a 500 (for now)
-    app_tiddler = store_app(environ, app_tiddler)
-
-    raise HTTP303(server_base_url(environ)
-            + '/_oauth/clientinfo?app=%s' % app_tiddler.title)
-
-
-def clientinfo(environ, start_response):
-    """
-    At the provider display the stored information
-    about a app, given its id in the query parameter `app`.
-
-    Only the client/app owner can see the secret.
-    """
-    query = environ['tiddlyweb.query']
-    current_user = environ['tiddlyweb.usersign']['name']
-    app_id = query.get('app', [None])[0]
-
-    if not app_id:
-        raise HTTP400('app parameter required')
-
-    try:
-        app = get_app(environ, app_id)
-    except StoreError:
-        raise HTTP404('no matching app found')
-
-    start_response('200 OK', [(
-        'Content-Type', 'text/plain; charset=UTF-8')])
-
-    output = ['client id: %s' % app.title]
-    if current_user == app.modifier:
-        output.append('client secret: %s' % app.fields['client_secret'])
-    return output
 
 
 @require_any_user()
@@ -294,8 +234,8 @@ def init(config):
     if 'selector' in config:
         config['extractors'].append('tiddlywebplugins.oauth.extractor')
         config['selector'].add('/_oauth/callback', GET=do_user_auth)
-        config['selector'].add('/_oauth/createclient', POST=createclient)
-        config['selector'].add('/_oauth/clientinfo', GET=clientinfo)
+        config['selector'].add('/_oauth/createapp', POST=create_app)
+        config['selector'].add('/_oauth/appinfo', GET=app_info)
         config['selector'].add('/_oauth/authorize', GET=provider_auth,
                 POST=provider_auth)
         config['selector'].add('/_oauth/access_token', POST=access_token)
