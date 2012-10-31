@@ -337,7 +337,7 @@ def init(config):
     """
     if 'selector' in config:
         config['extractors'].append('tiddlywebplugins.oauth.extractor')
-        config['selector'].add('/oauth2callback', GET=do_user_auth)
+        config['selector'].add('/_oauth/callback', GET=do_user_auth)
         config['selector'].add('/_oauth/createclient', POST=createclient)
         config['selector'].add('/_oauth/clientinfo', GET=clientinfo)
         config['selector'].add('/_oauth/authorize', GET=provider_auth,

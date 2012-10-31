@@ -43,7 +43,7 @@ def setup_module(module):
 # make an application and store that info
     app = create_app(name='testapp', owner='cdent',
             app_url='http://our_test_domain:8001',
-            callback_url='http://our_test_domain:8001/oauth2callback')
+            callback_url='http://our_test_domain:8001/_oauth/callback')
 
     client_id = app.title
     client_secret = app.fields['client_secret']
@@ -98,7 +98,7 @@ def test_our_server():
 
     assert response['status'] == '302'
     location = response['location']
-    assert 'http://our_test_domain:8001/oauth2callback?server_name=testserver&code=' in location
+    assert 'http://our_test_domain:8001/_oauth/callback?server_name=testserver&code=' in location
     code = location.rsplit('=', 1)[1]
 
 # use the code to have the consumer ask the provider for an access
