@@ -16,6 +16,7 @@ was needed to help understand wtf is going on.
 """
 
 from base64 import b64encode
+from urllib import urlencode
 
 from tiddlyweb.config import config
 from tiddlyweb.model.user import User
@@ -90,3 +91,93 @@ def test_auth_via_consumer():
 
     assert response['status'] == '200'
     assert '<form action="/_oauth/authorize" method="POST">' in content
+
+    post_hash = dict(
+        name='testapp',
+        access_type='offline',
+        redirect_uri='http://our_test_domain:8001/_oauth/callback?server_name=testserver',
+        response_type='code',
+        scope='',
+        accept='accept')
+
+    post_data = urlencode(post_hash)
+
+    response, content = http.request(
+            'http://our_test_domain:8001/_oauth/authorize',
+            headers={'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic %s' % authorization},
+            method='POST',
+            body=post_data)
+
+    assert response['status'] == '302'
+    assert 'error=invalid_request' in response['location']
+
+    post_hash['client_id'] = 'frankly wrong'
+    post_data = urlencode(post_hash)
+    response, content = http.request(
+            'http://our_test_domain:8001/_oauth/authorize',
+            headers={'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic %s' % authorization},
+            method='POST',
+            body=post_data)
+
+    assert response['status'] == '302'
+    assert 'error=unauthorized_client' in response['location']
+
+    post_hash['client_id'] = client_id
+    post_data = urlencode(post_hash)
+    response, content = http.request(
+            'http://our_test_domain:8001/_oauth/authorize',
+            headers={'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic %s' % authorization},
+            method='POST',
+            body=post_data)
+
+    assert response['status'] == '302'
+    assert 'code=' in response['location']
+
+    response, content = http.request(response['location'])
+
+    assert response['status'] == '200'
+
+    assert 'code: ' in content
+    assert 'credentials: ' in content
+    assert '{"name": "cdent", "roles": []}' in content
+
+    del post_hash['redirect_uri']
+    post_data = urlencode(post_hash)
+    response, content = http.request(
+            'http://our_test_domain:8001/_oauth/authorize',
+            headers={'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic %s' % authorization},
+            method='POST',
+            body=post_data)
+
+    assert response['status'] == '302'
+    assert 'code=' in response['location']
+
+    post_hash['redirect_uri'] = 'http://our_test_domain:8001/bad/uri'
+    post_data = urlencode(post_hash)
+    response, content = http.request(
+            'http://our_test_domain:8001/_oauth/authorize',
+            headers={'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic %s' % authorization},
+            method='POST',
+            body=post_data)
+
+    assert response['status'] == '302'
+    assert 'error=invalid_request' in response['location']
+
+    del post_hash['redirect_uri']
+    post_hash['state'] = 'the secret is here'
+    post_data = urlencode(post_hash)
+    response, content = http.request(
+            'http://our_test_domain:8001/_oauth/authorize',
+            headers={'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic %s' % authorization},
+            method='POST',
+            body=post_data)
+
+    assert response['status'] == '302'
+    assert 'code=' in response['location']
+    assert 'state=the%20secret%20is%20here' in response['location']

@@ -10,7 +10,7 @@ from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.store import StoreError
 from tiddlyweb.web.http import HTTP302
 from tiddlyweb.web.util import (http_date_from_timestamp,
-        datetime_from_http_date)
+        datetime_from_http_date, encode_name)
 
 from tiddlywebplugins.utils import require_any_user
 from tiddlywebplugins.templates import get_template
@@ -88,7 +88,7 @@ def provider_auth_success(environ, data):
 
     redirect_data = 'code=%s' % auth_code
     if 'state' in data:
-        redirect_data += '&state%s' % data['state']
+        redirect_data += '&state=%s' % encode_name(data['state'])
     if '?' in redirect_uri:
         redirect_uri += '&%s' % redirect_data
     else:
