@@ -4,6 +4,7 @@ from tiddlyweb.config import config
 from tiddlyweb.model.user import User
 from tiddlywebplugins.utils import get_store, ensure_bag
 
+from tiddlywebplugins.oauth import ensure_bags
 from tiddlywebplugins.oauth.client import create, store_app
 from tiddlywebplugins.oauth.auth import get_auth_uri, get_credentials
 
@@ -21,26 +22,9 @@ def setup_module(module):
     clean_store()
     module.store = get_store(config)
     environ = {'tiddlyweb.config': config, 'tiddlyweb.store': module.store}
+    ensure_bags(config)
 
-# set up required bags
-
-# one for storing app info
-    ensure_bag('oauth_apps', module.store, policy_dict=dict(
-        read=['NONE'], write=['NONE'], create=['NONE'],
-        delete=['NONE'], manage=['NONE']))
-
-# one for storing user authorization codes
-
-    ensure_bag('oauth_registrations', module.store, policy_dict=dict(
-        read=['NONE'], write=['NONE'], create=['NONE'],
-        delete=['NONE'], manage=['NONE']))
-
-# one for storing user auth tokens
-    ensure_bag('oauth_tokens', module.store, policy_dict=dict(
-        read=['NONE'], write=['NONE'], create=['NONE'],
-        delete=['NONE'], manage=['NONE']))
-
-# make an application and store that info
+    # make an application and store that info
     app = create(name='testapp', owner='cdent',
             app_url='http://our_test_domain:8001',
             callback_url='http://our_test_domain:8001/_oauth/callback')
@@ -58,7 +42,7 @@ def setup_module(module):
 
     module.http = Http()
 
-# we need a user who is going to use the client app
+    # we need a user who is going to use the client app
     user = User('cdent')
     user.set_password('cowpig')
     module.store.put(user)

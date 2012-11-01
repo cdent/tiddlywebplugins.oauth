@@ -17,7 +17,7 @@ def do_user_auth(environ, start_response):
     access token to get some information about the user
     at the provider.
 
-    XXX: Save the access token for later user.
+    XXX: Save the access token for later use.
     """
 
     query = environ['tiddlyweb.query']

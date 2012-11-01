@@ -20,6 +20,8 @@ from base64 import b64encode
 from httplib2 import Http
 
 from tiddlywebplugins.utils import get_store, ensure_bag
+
+from tiddlywebplugins.oauth import ensure_bags
 from tiddlywebplugins.oauth.client import create, store_app, client_valid
 
 from tiddlyweb.config import config
@@ -36,9 +38,7 @@ def setup_module(module):
     module.store = get_store(config)
     module.environ = {'tiddlyweb.config': config,
             'tiddlyweb.store': module.store}
-    ensure_bag('oauth_apps', module.store, policy_dict=dict(
-        read=['NONE'], write=['NONE'], create=['NONE'],
-        delete=['NONE'], manage=['NONE']))
+    ensure_bags(config)
     initialize_app(config)
     module.http = Http()
 
