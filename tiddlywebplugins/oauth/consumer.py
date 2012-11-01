@@ -2,7 +2,7 @@
 Routines used by the oAuth2 consumer.
 """
 
-from tiddlyweb.web.http import HTTP302
+from tiddlyweb.web.http import HTTP302, HTTP400
 
 from .auth import get_auth_uri, get_credentials
 
@@ -26,6 +26,9 @@ def do_user_auth(environ, start_response):
     code = query.get('code', [None])[0]
     error = query.get('error', [None])[0]
     server_name = query.get('server_name', [None])[0]
+
+    if not server_name:
+        raise HTTP400('invalid request, server_name required')
 
     # initial redirect
     if not code and not error:
