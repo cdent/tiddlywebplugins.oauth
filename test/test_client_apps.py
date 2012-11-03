@@ -19,7 +19,7 @@ import urllib
 from base64 import b64encode
 from httplib2 import Http
 
-from tiddlywebplugins.utils import get_store, ensure_bag
+from tiddlywebplugins.utils import get_store
 
 from tiddlywebplugins.oauth import ensure_bags
 from tiddlywebplugins.oauth.client import create, store_app, client_valid

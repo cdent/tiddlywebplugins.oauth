@@ -52,7 +52,7 @@ def provider_auth(environ, start_response):
     if 'redirect_uri' not in data:
         data['redirect_uri'] = app.fields['callback_url']
 
-    # This comes after loading the app, as we might not have a 
+    # This comes after loading the app, as we might not have a
     # redirect uri
     if input_errors:
         provider_auth_error(data, error='invalid_request')

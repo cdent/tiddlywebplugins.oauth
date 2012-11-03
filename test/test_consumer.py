@@ -11,7 +11,7 @@ auth). To do this we need:
 The primary purpose of this is to cover the consumer code, but in
 the process it ought to illuminate the entire structure. This is
 only possible now that provider code has been written: the existing
-consumer code was tested on a live server, which is a bit lame, but 
+consumer code was tested on a live server, which is a bit lame, but
 was needed to help understand wtf is going on.
 """
 
@@ -20,11 +20,10 @@ from urllib import urlencode
 
 from tiddlyweb.config import config
 from tiddlyweb.model.user import User
-from tiddlywebplugins.utils import get_store, ensure_bag
+from tiddlywebplugins.utils import get_store
 
 from tiddlywebplugins.oauth import ensure_bags
 from tiddlywebplugins.oauth.client import create, store_app
-from tiddlywebplugins.oauth.auth import get_auth_uri, get_credentials
 
 from httplib2 import Http, RedirectLimit
 
@@ -41,7 +40,7 @@ def setup_module(module):
     module.store = get_store(config)
     environ = {'tiddlyweb.config': config, 'tiddlyweb.store': module.store}
     ensure_bags(config)
- 
+
     # make an application and store that info
     app = create(name='testapp', owner='appowner1',
             app_url='http://our_test_domain:8001',

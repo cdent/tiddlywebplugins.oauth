@@ -2,7 +2,7 @@ from base64 import b64encode
 
 from tiddlyweb.config import config
 from tiddlyweb.model.user import User
-from tiddlywebplugins.utils import get_store, ensure_bag
+from tiddlywebplugins.utils import get_store
 
 from tiddlywebplugins.oauth import ensure_bags
 from tiddlywebplugins.oauth.client import create, store_app
