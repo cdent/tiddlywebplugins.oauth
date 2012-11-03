@@ -3,6 +3,7 @@ Data handling code used by an oauth2 provider.
 """
 
 import json
+from base64 import b64decode
 from uuid import uuid4
 from datetime import datetime, timedelta
 
@@ -35,20 +36,26 @@ def provider_auth(environ, start_response):
     """
     query = environ['tiddlyweb.query']
     data = {}
-    for key in ['scope', 'redirect_uri', 'response_type', 'client_id',
+    input_errors = False
+    for key in ['redirect_uri', 'scope', 'response_type', 'client_id',
             'access_type', 'state']:
         if key in query:
             data[key] = query[key][0]
         elif key in ['client_id', 'response_type', 'scope']:
-            provider_auth_error(data, error='invalid_request')
+            input_errors = True
 
     try:
         app = get_app(environ, data['client_id'])
-    except StoreError:
+    except (StoreError, KeyError):
         return provider_auth_error(data, error='unauthorized_client')
 
     if 'redirect_uri' not in data:
         data['redirect_uri'] = app.fields['callback_url']
+
+    # This comes after loading the app, as we might not have a 
+    # redirect uri
+    if input_errors:
+        provider_auth_error(data, error='invalid_request')
 
     if not data['redirect_uri'].startswith(app.fields['callback_url']):
         return provider_auth_error(data, error='invalid_request')
@@ -112,8 +119,10 @@ def provider_auth_error(data, error='invalid_request'):
 
 def access_token(environ, start_response):
     """
-    On the provider, respond to a POST requesting an access
-    token.
+    On the auth server, respond to a POST requesting an access
+    token. This request comes from the client (aka the consumer),
+    following the resource owner (aka the user-agent) authorizing
+    the client to the auth server.
 
     There are several required form items. Once these are had,
     the client_secret and id must be validated against stored info.
@@ -135,6 +144,16 @@ def access_token(environ, start_response):
             return token_error(start_response,
                     error='invalid_request',
                     message='missing required input')
+
+    # Extract client auth info, either from POST of HTTP Basic auth
+    try:
+        input_data['client_id'] = query['client_id'][0]
+        input_data['client_secret'] = query['client_secret'][0]
+    except KeyError:
+        client_info = environ.get('HTTP_AUTHORIZATION', 'Basic ').split(' ')[1]
+        client_info = b64decode(client_info).split(':')
+        input_data['client_id'] = client_info[0]
+        input_data['client_secret'] = client_info[1]
 
     if not client_valid(environ, input_data['client_id'],
             input_data['client_secret']):

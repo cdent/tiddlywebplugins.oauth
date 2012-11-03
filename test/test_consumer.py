@@ -92,6 +92,7 @@ def test_auth_via_consumer():
     assert response['status'] == '200'
     assert '<form action="/_oauth/authorize" method="POST">' in content
 
+    # no client present
     post_hash = dict(
         name='testapp',
         access_type='offline',
@@ -110,7 +111,7 @@ def test_auth_via_consumer():
             body=post_data)
 
     assert response['status'] == '302'
-    assert 'error=invalid_request' in response['location']
+    assert 'error=unauthorized_client' in response['location']
 
     post_hash['client_id'] = 'frankly wrong'
     post_data = urlencode(post_hash)
@@ -181,3 +182,14 @@ def test_auth_via_consumer():
     assert response['status'] == '302'
     assert 'code=' in response['location']
     assert 'state=the%20secret%20is%20here' in response['location']
+
+    del post_hash['response_type']
+    post_data = urlencode(post_hash)
+    response, content = http.request(
+            'http://our_test_domain:8001/_oauth/authorize',
+            headers={'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic %s' % authorization},
+            method='POST',
+            body=post_data)
+    assert response['status'] == '302'
+    assert 'error=invalid_request' in response['location']
