@@ -16,6 +16,8 @@ from the id.
 """
 
 import urllib
+import py.test
+
 from base64 import b64encode
 from httplib2 import Http
 
@@ -48,6 +50,9 @@ def setup_module(module):
 
 
 def test_create_application():
+
+    py.test.raises(TypeError, 'create(name="missing")')
+
     app = create(name='monkey',
             owner='cdent',
             app_url='http://oauth.peermore.com',
@@ -70,6 +75,7 @@ def test_create_application():
 def test_web_create_application():
     request_body = urllib.urlencode(dict(name='cow',
             app_url='http://someplace.example.com',
+            logo='http://someplace.example.com/picture.png',
             callback_url='http://however.example.com/callback'))
     response, content = http.request(
             'http://our_test_domain:8001/_oauth/createapp',
@@ -91,6 +97,21 @@ def test_web_create_application():
 
     app_id = content.split(':', 1)[1].strip()
 
+    request_body = urllib.urlencode(dict(
+            app_url='http://someplace.example.com',
+            callback_url='http://however.example.com/callback'))
+
+    response, content = http.request(
+            'http://our_test_domain:8001/_oauth/createapp',
+            method='POST',
+            headers={'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic %s' % authorization},
+            body=request_body)
+
+    assert response['status'] == '400'
+    assert 'Invalid form submission' in content
+
+    # get app info
     response, content = http.request(
             'http://our_test_domain:8001/_oauth/appinfo?app=%s' % app_id,
             method='GET',
