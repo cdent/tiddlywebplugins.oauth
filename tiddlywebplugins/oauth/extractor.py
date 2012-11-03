@@ -4,9 +4,9 @@ oauth style bearer tokens and tries to validate
 them.
 """
 
+from tiddlyweb.model.tiddler import Tiddler
+from tiddlyweb.store import StoreError
 from tiddlyweb.web.extractors import ExtractorInterface
-
-from tiddlywebplugins.oauth.provider import check_access_token
 
 
 class Extractor(ExtractorInterface):
@@ -37,3 +37,38 @@ class Extractor(ExtractorInterface):
 
         user = self.load_user(environ, candidate_username)
         return {"name": user.usersign, "roles": user.list_roles()}
+
+
+def check_access_token(environ, token):
+    """
+    Extract a user from token information, if the token is valid.
+    """
+    config = environ['tiddlyweb.config']
+    store = environ['tiddlyweb.store']
+    bag_name = config.get('oauth.tokens_bag', 'oauth_tokens')
+
+    token_info = Tiddler(token, bag_name)
+    try:
+        token_info = store.get(token_info)
+    except StoreError:
+        return None
+
+    token_type = token_info.fields['token_type']
+    expires_in = token_info.fields.get('expires_in', None)
+
+    client_id = token_info.fields['client']
+    # XXX verify that client_id is "us"
+
+    if token_type != 'bearer':
+        return None
+    user = token_info.modifier
+    if 'scope' in token_info.fields:
+        scope = token_info.fields['scope'].split(' ')
+    else:
+        scope = ''
+
+    if expires_in:
+        # XXX check against token creation time delete if expired
+        pass
+
+    return user, scope
