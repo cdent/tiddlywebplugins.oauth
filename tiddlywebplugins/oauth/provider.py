@@ -215,7 +215,8 @@ def token_success(start_response, token):
     json_data = json.dumps(data)
     start_response('200 OK', [
         ('Content-Type', 'application/json'),
-        ('Cache-control', 'no-store')])
+        ('Cache-control', 'no-store'),
+        ('Pragma', 'no-cache')])
     return [json_data]
 
 
@@ -228,7 +229,9 @@ def token_error(start_response, error='error', message=''):
         data['error_description'] = message
     json_data = json.dumps(data)
     start_response('400 Bad Request', [
-        ('Content-type', 'application/json')])
+        ('Content-type', 'application/json'),
+        ('Cache-control', 'no-store'),
+        ('Pragma', 'no-cache')])
     return [json_data]
 
 
