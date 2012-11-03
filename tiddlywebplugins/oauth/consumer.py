@@ -1,5 +1,17 @@
 """
-Routines used by the oAuth2 consumer.
+Routines used by the oAuth2 client, aka the consumer.
+
+For now this module hosts a client callback that was
+created for the express purpose of allowing new user
+registration in TiddlyWeb, using auth info from a 
+remote service such as Facebook, Github, Google.
+
+As such, it extends the generic purpose of the
+callback uri beyond what it would normally be.
+
+A more generic tool would simply store the code
+for future requests. So, for the future these
+two purposes need to be separated.
 """
 
 from tiddlyweb.web.http import HTTP302, HTTP400
