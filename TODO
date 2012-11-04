@@ -1,0 +1,33 @@
+
+It's hard to know how to proceed on this stuff to get it robust.
+
+Unfortunately to test it with other services needs a callback URI and
+when inside a NAT, ugh.
+
+Which leaves opportunities for testing a tiddlyweb client against a
+tiddlyweb resource server, using test code as the resource owner.
+
+To get to that state, then:
+
+* the extractor needs to know about scopes
+* the resource owner needs to validate scope
+* the client needs to persist access tokens
+* the resource owner needs to check expiry times on tokens
+* the authorization server may need to accept refresh tokens
+* one or both of tiddlywebweb or remotebag need to auth with oAuth
+* the authorization/resource server needs to support implicit grants
+
+The refresh token idea seems a bit weak or useless, or maybe insecure.
+It's not entirely clear.
+
+Another challenge is that it's hard to find tools out there which are
+using oAuth in a generic fashion, such that at service A we can get some
+tiddlers...
+
+In fact in the end, we seem to end up with just three use cases:
+
+* using one of the bigwigs as an auth server and identity provider
+* using one of the bigwigs as a data source (e.g. show your tweets)
+* access another tiddlyweb from this tiddlyweb
+
+Too much bigwigs, again!
