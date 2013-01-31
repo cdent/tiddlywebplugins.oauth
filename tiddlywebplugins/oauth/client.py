@@ -3,10 +3,10 @@ Creation and updating of client apps.
 """
 
 from uuid import uuid4
+from httpexceptor import HTTP303, HTTP400, HTTP404
 
 from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.store import StoreError
-from tiddlyweb.web.http import HTTP303, HTTP400, HTTP404
 from tiddlyweb.web.util import server_base_url
 
 from tiddlywebplugins.utils import require_any_user

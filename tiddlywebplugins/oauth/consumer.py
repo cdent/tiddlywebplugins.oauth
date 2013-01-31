@@ -14,7 +14,7 @@ for future requests. So, for the future these
 two purposes need to be separated.
 """
 
-from tiddlyweb.web.http import HTTP302, HTTP400
+from httpexceptor import HTTP302, HTTP400
 
 from .auth import get_auth_uri, get_credentials
 

@@ -6,10 +6,10 @@ import json
 from base64 import b64decode
 from uuid import uuid4
 from datetime import datetime, timedelta
+from httpexceptor import HTTP302
 
 from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.store import StoreError
-from tiddlyweb.web.http import HTTP302
 from tiddlyweb.web.util import (http_date_from_timestamp,
         datetime_from_http_date, encode_name)
 
