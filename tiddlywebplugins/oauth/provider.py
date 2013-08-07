@@ -145,7 +145,7 @@ def access_token(environ, start_response):
                     error='invalid_request',
                     message='missing required input')
 
-    # Extract client auth info, either from POST of HTTP Basic auth
+    # Extract client auth info, either from POST or HTTP Basic auth
     try:
         input_data['client_id'] = query['client_id'][0]
         input_data['client_secret'] = query['client_secret'][0]
