@@ -141,7 +141,6 @@ def test_auth_via_consumer():
     assert response['status'] == '200'
 
     assert 'code: ' in content
-    assert 'credentials: ' in content
     assert '{"name": "cdent", "roles": []}' in content
 
     del post_hash['redirect_uri']

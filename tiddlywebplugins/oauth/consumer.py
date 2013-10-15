@@ -14,7 +14,16 @@ for future requests. So, for the future these
 two purposes need to be separated.
 """
 
+import simplejson
+
+from oauth2client.client import Error as OAuthError
 from httpexceptor import HTTP302, HTTP400
+
+from tiddlyweb.model.user import User
+from tiddlyweb.store import StoreError
+from tiddlyweb.web.util import make_cookie, server_host_url
+
+from tiddlywebplugins.templates import get_template
 
 from .auth import get_auth_uri, get_credentials
 
@@ -46,16 +55,25 @@ def do_user_auth(environ, start_response):
     if not code and not error:
         raise HTTP302(get_auth_uri(config, server_name))
 
+    response_map = config['oauth.servers'][server_name].get('response_map')
+
     output = []
     if code:
-        output.append('code: %s\n' % code)
-        credentials, http = get_credentials(config, server_name, code)
-        output.append('credentials: %s\n' % credentials)
+        try:
+            credentials, http = get_credentials(config, server_name, code)
+        except OAuthError as exc:
+            raise HTTP400('credentials failure: %s' % exc)
+
         credentials.authorize(http)
         response, content = http.request(
                 config['oauth.servers'][server_name]['info_uri'])
         if response['status'] == '200':
-            output.append(content)
+            if response_map:
+                return _do_login_or_register(environ, start_response,
+                        response_map, content)
+            else:
+                output.append('code: %s\n' % code)
+                output.append(content)
         else:
             output.append('Unable to reach info_uri')
 
@@ -64,3 +82,47 @@ def do_user_auth(environ, start_response):
 
     start_response('200 OK', [('Content-Type', 'text-plain')])
     return output
+
+
+def _do_login_or_register(environ, start_response, response_map, content):
+    """
+    We had a valid response from the oauth provider, let's see if that is
+    a user or somebody we can register.
+    """
+    store = environ['tiddlyweb.store']
+    userinfo = simplejson.loads(content)
+    userdata = {}
+    for key, value in response_map.iteritems():
+        userdata[key] = userinfo[value]
+
+    username = userdata['login']
+    try:
+        user = store.get(User(username))
+        return _send_cookie(environ, start_response, user)
+    except StoreError:
+        pass
+
+    registration_template = get_template(environ, 'registration.html')
+
+    start_response('200 OK', [('Content-Type', 'text/html; charset=UTF-8'),
+        ('Cache-Control', 'private')])
+
+    return registration_template.generate(userdata)
+
+
+def _send_cookie(environ, start_response, user):
+    """
+    We are authentic and a user exists, so install a cookie.
+    """
+    config = environ['tiddlyweb.config']
+    logged_in_redirect = config.get('logged_in_redirect', '/')
+    redirect_uri = '%s%s' % (server_host_url(environ), logged_in_redirect)
+    secret = config['secret']
+    cookie_age = config.get('cookie_age', None)
+    cookie_header_string = make_cookie('tiddlyweb_user', user.usersign,
+            mac_key=secret, path='/', expires=cookie_age)
+    start_response('303 See Other', 
+            [('Set-Cookie', cookie_header_string),
+                ('Content-Type', 'text/plain'),
+                ('Location', redirect_uri)])
+    return [redirect_uri]
