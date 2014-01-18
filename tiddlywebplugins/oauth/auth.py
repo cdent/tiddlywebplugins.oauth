@@ -10,7 +10,7 @@ from copy import deepcopy
 from httplib2 import Http
 
 
-def get_flow_client(config, server_name):
+def get_flow_client(config, server_name, redirect_extra=None):
     """
     Return a flow and an http object for running these requests.
     for this server_name. Return KeyError if the server is not
@@ -24,18 +24,21 @@ def get_flow_client(config, server_name):
         http = Http()
 
     del config_data['info_uri']
-    config_data['redirect_uri'] = '%s?server_name=%s' % (
+    redirect_uri =  '%s?server_name=%s' % (
             config_data['redirect_uri'], server_name)
+    if redirect_extra:
+        redirect_uri = redirect_uri + ';tiddlyweb_redirect=%s' % redirect_extra
+    config_data['redirect_uri'] = redirect_uri
     flow = OAuth2WebServerFlow(**config_data)
 
     return flow, http
 
 
-def get_auth_uri(config, server_name):
+def get_auth_uri(config, server_name, redirect_extra=None):
     """
     Get the auth uri for a provider named by server_name.
     """
-    flow = get_flow_client(config, server_name)[0]
+    flow = get_flow_client(config, server_name, redirect_extra)[0]
     auth_uri = flow.step1_get_authorize_url()
     return auth_uri
 

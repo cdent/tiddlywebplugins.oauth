@@ -47,13 +47,14 @@ def do_user_auth(environ, start_response):
     code = query.get('code', [None])[0]
     error = query.get('error', [None])[0]
     server_name = query.get('server_name', [None])[0]
+    redirect_uri = query.get('tiddlyweb_redirect', [None])[0]
 
     if not server_name:
         raise HTTP400('invalid request, server_name required')
 
     # initial redirect
     if not code and not error:
-        raise HTTP302(get_auth_uri(config, server_name))
+        raise HTTP302(get_auth_uri(config, server_name, redirect_uri))
 
     response_map = config['oauth.servers'][server_name].get('response_map')
 
@@ -114,9 +115,12 @@ def _send_cookie(environ, start_response, user):
     """
     We are authentic and a user exists, so install a cookie.
     """
+    query = environ['tiddlyweb.query']
+    tiddlyweb_redirect = query.get('tiddlyweb_redirect', [None])[0]
     config = environ['tiddlyweb.config']
-    logged_in_redirect = config.get('logged_in_redirect', '/')
-    redirect_uri = '%s%s' % (server_host_url(environ), logged_in_redirect)
+    if not tiddlyweb_redirect:
+        tiddlyweb_redirect = config.get('logged_in_redirect', '/')
+    redirect_uri = '%s%s' % (server_host_url(environ), tiddlyweb_redirect)
     secret = config['secret']
     cookie_age = config.get('cookie_age', None)
     cookie_header_string = make_cookie('tiddlyweb_user', user.usersign,
@@ -124,5 +128,5 @@ def _send_cookie(environ, start_response, user):
     start_response('303 See Other', 
             [('Set-Cookie', cookie_header_string),
                 ('Content-Type', 'text/plain'),
-                ('Location', redirect_uri)])
+                ('Location', str(redirect_uri))])
     return [redirect_uri]
