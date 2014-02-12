@@ -27,7 +27,7 @@ def get_flow_client(config, server_name, redirect_extra=None):
     redirect_uri =  '%s?server_name=%s' % (
             config_data['redirect_uri'], server_name)
     if redirect_extra:
-        redirect_uri = redirect_uri + ';tiddlyweb_redirect=%s' % redirect_extra
+        redirect_uri = redirect_uri + '&tiddlyweb_redirect=%s' % redirect_extra
     config_data['redirect_uri'] = redirect_uri
     flow = OAuth2WebServerFlow(**config_data)
 
