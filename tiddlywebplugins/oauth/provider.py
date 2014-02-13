@@ -30,7 +30,7 @@ def provider_auth(environ, start_response):
     the stored callback_url.
 
     That code is stored to be compared later, when the
-    consumer sends it requesting as access_token.
+    consumer sends it requesting an access_token.
 
     XXX: Missing scope handling.
     """

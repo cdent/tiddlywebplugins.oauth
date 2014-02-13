@@ -51,7 +51,7 @@ def check_access_token(environ, token):
     try:
         token_info = store.get(token_info)
     except StoreError:
-        return None
+        return None, None
 
     token_type = token_info.fields['token_type']
     expires_in = token_info.fields.get('expires_in', None)
@@ -60,7 +60,7 @@ def check_access_token(environ, token):
     # XXX verify that client_id is "us"
 
     if token_type != 'bearer':
-        return None
+        return None, None
     user = token_info.modifier
     if 'scope' in token_info.fields:
         scope = token_info.fields['scope'].split(' ')
