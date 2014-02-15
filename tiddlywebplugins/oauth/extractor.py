@@ -4,6 +4,8 @@ oauth style bearer tokens and tries to validate
 them.
 """
 
+from httpextractor import HTTP401
+
 from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.store import StoreError
 from tiddlyweb.web.extractors import ExtractorInterface
@@ -31,7 +33,7 @@ class Extractor(ExtractorInterface):
         candidate_username, scope = check_access_token(environ, token)
 
         if not candidate_username:
-            return False
+            raise HTTP401('Bearer error="invalid token")
 
         # XXX do something with scope eventually
 
