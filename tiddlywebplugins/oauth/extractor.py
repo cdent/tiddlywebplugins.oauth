@@ -33,7 +33,7 @@ class Extractor(ExtractorInterface):
         candidate_username, scope = check_access_token(environ, token)
 
         if not candidate_username:
-            raise HTTP401('Bearer error="invalid token")
+            raise HTTP401('Bearer error="invalid token"')
 
         # XXX do something with scope eventually
 
