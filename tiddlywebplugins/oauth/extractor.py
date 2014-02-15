@@ -4,7 +4,7 @@ oauth style bearer tokens and tries to validate
 them.
 """
 
-from httpextractor import HTTP401
+from httpexceptor import HTTP401
 
 from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.store import StoreError
