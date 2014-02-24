@@ -139,7 +139,6 @@ def _do_login_or_register(environ, start_response, server_name, response_map,
     if server_login:
         userdata['server_login'] = server_login
         userdata['server_login_sig'] = _sign(config, server_login)
-    print 'userdata', userdata
     return registration_template.generate(userdata)
 
 
