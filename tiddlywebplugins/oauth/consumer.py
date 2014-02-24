@@ -19,8 +19,10 @@ import simplejson
 from oauth2client.client import Error as OAuthError
 from httpexceptor import HTTP302, HTTP400
 
+from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.model.user import User
 from tiddlyweb.store import StoreError
+from tiddlyweb.util import sha
 from tiddlyweb.web.util import make_cookie, server_host_url
 
 from tiddlywebplugins.templates import get_template
@@ -71,7 +73,7 @@ def do_user_auth(environ, start_response):
         if response['status'] == '200':
             if response_map:
                 return _do_login_or_register(environ, start_response,
-                        response_map, content)
+                        server_name, response_map, content)
             else:
                 output.append('code: %s\n' % code)
                 output.append(content)
@@ -85,31 +87,68 @@ def do_user_auth(environ, start_response):
     return output
 
 
-def _do_login_or_register(environ, start_response, response_map, content):
+def _do_login_or_register(environ, start_response, server_name, response_map,
+        content):
     """
     We had a valid response from the oauth provider, let's see if that is
     a user or somebody we can register.
     """
     store = environ['tiddlyweb.store']
+    config = environ['tiddlyweb.config']
     userinfo = simplejson.loads(content)
     userdata = {}
     for key, value in response_map.iteritems():
         userdata[key] = userinfo[value]
 
+    server_login = None
     username = userdata['login']
-    try:
-        user = store.get(User(username))
-        return _send_cookie(environ, start_response, user)
-    except StoreError:
-        pass
+    userdata['server_name'] = server_name
+
+    if config.get('oauth.use_mapuser', False):
+        server_login = '%s-%s' % (server_name, username)
+        map_bag_name = config.get('magicuser.map', 'MAPUSER')
+        tiddler = Tiddler(server_login, map_bag_name)
+        try:
+            store.get(tiddler)
+            mapped_user = tiddler.fields.get('mapped_user')
+            store.get(User(mapped_user))
+            user = User(server_login)
+            return _send_cookie(environ, start_response, user)
+        except StoreError:
+            try:
+                local_user = store.get(User(username))
+            except StoreError:
+                local_user = None
+            pass  # fall through to register
+    else:
+        try:
+            user = store.get(User(username))
+            return _send_cookie(environ, start_response, user)
+        except StoreError:
+            local_user = None
+            pass  # fall through to register
 
     registration_template = get_template(environ, 'registration.html')
 
     start_response('200 OK', [('Content-Type', 'text/html; charset=UTF-8'),
         ('Cache-Control', 'private')])
 
+    if local_user:
+        userdata['local_user'] = local_user.usersign
+    userdata['server_name_sig'] = _sign(config, server_name)
+    if server_login:
+        userdata['server_login'] = server_login
+        userdata['server_login_sig'] = _sign(config, server_login)
+    print 'userdata', userdata
     return registration_template.generate(userdata)
 
+
+def _sign(config, item):
+    """
+    Make a hash of item.
+    """
+    secret = config['secret']
+    return sha('%s%s' % (item, secret)).hexdigest()
 
 def _send_cookie(environ, start_response, user):
     """
