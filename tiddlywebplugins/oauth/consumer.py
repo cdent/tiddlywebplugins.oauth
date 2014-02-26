@@ -98,10 +98,14 @@ def _do_login_or_register(environ, start_response, server_name, response_map,
     userinfo = simplejson.loads(content)
     userdata = {}
     for key, value in response_map.iteritems():
-        userdata[key] = userinfo[value]
+        userdata[key] = userinfo.get(value, '')
 
     server_login = None
+
     username = userdata['login']
+    if not username:
+        raise HTTP400('extractable username data required')
+
     userdata['server_name'] = server_name
 
     if config.get('oauth.use_mapuser', False):
