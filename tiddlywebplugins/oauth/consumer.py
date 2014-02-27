@@ -135,7 +135,7 @@ def _do_login_or_register(environ, start_response, server_name, response_map,
     registration_template = get_template(environ, 'registration.html')
 
     start_response('200 OK', [('Content-Type', 'text/html; charset=UTF-8'),
-        ('Cache-Control', 'private')])
+        ('Cache-Control', 'no-store')])
 
     if local_user:
         userdata['local_user'] = local_user.usersign
