@@ -113,7 +113,7 @@ def _do_login_or_register(environ, start_response, server_name, response_map,
         map_bag_name = config.get('magicuser.map', 'MAPUSER')
         tiddler = Tiddler(server_login, map_bag_name)
         try:
-            store.get(tiddler)
+            tiddler = store.get(tiddler)
             mapped_user = tiddler.fields.get('mapped_user')
             store.get(User(mapped_user))
             user = User(server_login)
