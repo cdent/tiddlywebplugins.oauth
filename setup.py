@@ -16,13 +16,16 @@ setup(
     name = NAME,
     version = VERSION,
     description = DESCRIPTION,
-    long_description = open(os.path.join(os.path.dirname(__file__), 'README')).read(),
+    long_description = open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
     author = AUTHOR,
     author_email = AUTHOR_EMAIL,
     url = 'http://pypi.python.org/pypi/%s' % NAME,
     platforms = 'Posix; MacOS X; Windows',
     packages = find_packages(exclude=['test']),
     install_requires = [
+        'tiddlywebplugins.templates',
+        'tiddlywebplugins.utils',
+        'tiddlyweb',
         'oauth2client',
         'httplib2'
         ],
